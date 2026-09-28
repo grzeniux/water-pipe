@@ -43,13 +43,40 @@ def wczytaj_profil(sciezka):
     return m_siatka, z_siatka
 
 # ==============================================================================
-# 2. OBLICZENIA HYDROSTATYKI
+# 2. OBLICZENIA HYDROSTATYKI I POJEMNOŚCI WODNEJ
 # ==============================================================================
+def oblicz_parametry_odcinkow():
+    """
+    Wylicza długość i pojemność wodną dla każdej sekcji rur.
+    """
+    dane_sekcji = []
+    laczna_pojemnosc = 0.0
+
+    for s in config.SEKCJE_RUR:
+        dlugosc = s['do_metra'] - s['od_metra']
+        d = s['srednica']
+        pole = np.pi * (d / 2.0)**2
+        
+        pojemnosc_l = pole * dlugosc * 1000.0
+        laczna_pojemnosc += pojemnosc_l
+
+        dane_sekcji.append({
+            'nazwa': s['nazwa'],
+            'od_metra': s['od_metra'],
+            'do_metra': s['do_metra'],
+            'srednica': d,
+            'dlugosc': dlugosc,
+            'pojemnosc_l': pojemnosc_l
+        })
+
+    return dane_sekcji, laczna_pojemnosc
+
 def oblicz_hydrostatyke(m, z_teren):
     z_rura = z_teren - config.GLEBOKOSC_RURY
     
     punkt_dom = next(p for p in config.PUNKTY_INFRASTRUKTURY if p['typ'] == 'dom')
     h_dom = float(np.interp(punkt_dom['metr'], m, z_rura))
+    h_start = float(np.interp(0.0, m, z_rura))
     
     P_stat = config.POMIAR_TEST_SZCZELNOSCI['cisnienie_ustabilizowane_bar']
     slup_wody = P_stat * 10.19716
@@ -66,17 +93,32 @@ def oblicz_hydrostatyke(m, z_teren):
         if m[i] >= m_wyciek:
             cisnienie[i] = max(0.0, (h_zwierciadlo - z_rura[i]) / 10.19716)
 
+    dane_sekcji, poj_calkowita = oblicz_parametry_odcinkow()
+
+    # Obliczenie objętości zrzutu wody (od studzienki do punktu wycieku)
+    v_zrzut = 0.0
+    for s in dane_sekcji:
+        start_odc = max(punkt_studnia['metr'], s['od_metra'])
+        end_odc = min(m_wyciek, s['do_metra'])
+        if end_odc > start_odc:
+            dl = end_odc - start_odc
+            v_zrzut += np.pi * (s['srednica'] / 2.0)**2 * dl * 1000.0
+
     return {
         'z_rura': z_rura,
         'h_dom': h_dom,
         'slup_wody': slup_wody,
         'h_zwierciadlo': h_zwierciadlo,
         'm_wyciek': m_wyciek,
-        'cisnienie': cisnienie
+        'cisnienie': cisnienie,
+        'dane_sekcji': dane_sekcji,
+        'pojemnosc_calkowita': poj_calkowita,
+        'v_zrzut': v_zrzut,
+        'spadek_pion': h_start - h_dom
     }
 
 # ==============================================================================
-# 3. GENEROWANIE CZYTELNEGO WYKRESU TECHNICZNEGO
+# 3. GENEROWANIE WYKRESU TECHNICZNEGO
 # ==============================================================================
 def rysuj_raport(m, z_teren, res):
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 11), sharex=True, 
@@ -85,29 +127,34 @@ def rysuj_raport(m, z_teren, res):
 
     # --- PANEL GÓRNY: PROFIL TERENU I RUROCIĄG ---
     ax1.plot(m, z_teren, color='#7f8c8d', linestyle='--', linewidth=1.2, label='Powierzchnia terenu', alpha=0.7)
-    ax1.fill_between(m, z_teren, min(res['z_rura']) - 10, color='#f8f9fa', alpha=0.6)
+    ax1.fill_between(m, z_teren, min(res['z_rura']) - 15, color='#f8f9fa', alpha=0.6)
 
-    # Rurociąg z sekcjami
     kolory_rur = {'PE40': '#2980b9', 'PE20': '#d35400', 'PE32': '#27ae60', 'PE25': '#8e44ad'}
-    for sekcja in config.SEKCJE_RUR:
+    for sekcja in res['dane_sekcji']:
         mask = (m >= sekcja['od_metra']) & (m <= sekcja['do_metra'])
         klucz = [k for k in kolory_rur if k in sekcja['nazwa']][0]
-        ax1.plot(m[mask], res['z_rura'][mask], color=kolory_rur[klucz], linewidth=3.5,
-                 label=f"{sekcja['nazwa']} (śr. wewn. {sekcja['srednica']*1000:.1f} mm)")
+        
+        etykieta = (
+            f"{sekcja['nazwa']} (L = {sekcja['dlugosc']:.1f} m | "
+            f"Ø {sekcja['srednica']*1000:.1f} mm | "
+            f"V = {sekcja['pojemnosc_l']:.1f} L)"
+        )
+        
+        ax1.plot(m[mask], res['z_rura'][mask], color=kolory_rur[klucz], linewidth=3.5, label=etykieta)
 
     # Słup uwięzionej wody
     maska_woda = m >= res['m_wyciek']
     ax1.fill_between(m[maska_woda], res['z_rura'][maska_woda], res['h_zwierciadlo'], 
-                     color='#3498db', alpha=0.25, label='Uwięziona woda (naporowe 1.6 bar)')
+                     color='#3498db', alpha=0.25, label=f"Uwięziona woda (naporowe {config.POMIAR_TEST_SZCZELNOSCI['cisnienie_ustabilizowane_bar']:.1f} bar)")
     ax1.axhline(res['h_zwierciadlo'], color='#2980b9', linestyle=':', linewidth=1.8)
 
     # Wyróżnienie punktu wycieku
     ax1.scatter([res['m_wyciek']], [res['h_zwierciadlo']], color='#c0392b', s=200, zorder=6, edgecolors='black', lw=2)
 
-    # RAMKA WYNIKU WYCIEKU WYNIESIONA WYSOKO NAD WYKRES (brak kolizji z punktem [2])
+    # Usunięto 'km' - czysty zapis w metrach
     ax1.annotate(
         f"WYLICZONY PUNKT NIESZCZELNOŚCI\n"
-        f"Odległość: km {res['m_wyciek']:.1f} m  |  Rzędna: {res['h_zwierciadlo']:.2f} m n.p.m.",
+        f"Odległość od zbiornika: {res['m_wyciek']:.1f} m  |  Rzędna: {res['h_zwierciadlo']:.2f} m n.p.m.",
         xy=(res['m_wyciek'], res['h_zwierciadlo']),
         xytext=(res['m_wyciek'] - 30, 606.0),
         arrowprops=dict(
@@ -120,7 +167,7 @@ def rysuj_raport(m, z_teren, res):
         bbox=dict(boxstyle="round,pad=0.5", fc="#fdf2e9", ec="#c0392b", lw=1.5)
     )
 
-    # Etykietowanie punktów infrastruktury (kółka z numerami)
+    # Etykietowanie punktów trasy
     legenda_punktow = []
     for i, pkt in enumerate(config.PUNKTY_INFRASTRUKTURY, start=1):
         m_pkt = pkt['metr']
@@ -137,26 +184,47 @@ def rysuj_raport(m, z_teren, res):
             )
             legenda_punktow.append(f"[{i}] {pkt['nazwa']} ({m_pkt:.1f} m)")
 
-    # Legenda punktów trasy w prawym górnym rogu
     tekst_legendy = "PUNKTY TRASY:\n" + "\n".join(legenda_punktow)
     ax1.text(0.985, 0.96, tekst_legendy, transform=ax1.transAxes,
              fontsize=8.5, verticalalignment='top', horizontalalignment='right',
              bbox=dict(boxstyle='round,pad=0.5', facecolor='white', edgecolor='#bdc3c7', alpha=0.95))
 
+    # Ramka bilansu pojemnościowego w lewym górnym rogu
+    tekst_bilansu = (
+        f"BILANS POJEMNOŚCIOWY RUROCIĄGU:\n"
+        f"• Długość całkowita: {max(m):.1f} m\n"
+        f"• Całkowita pojemność rurociągu: {res['pojemnosc_calkowita']:.1f} L\n"
+        f"• Woda wylana do gruntu przy teście: ~{res['v_zrzut']:.1f} L"
+    )
+    ax1.text(0.015, 0.96, tekst_bilansu, transform=ax1.transAxes,
+             fontsize=9, fontweight='bold', color='#1a5276', verticalalignment='top',
+             bbox=dict(boxstyle='round,pad=0.5', facecolor='#ebf5fb', edgecolor='#2980b9', alpha=0.95))
+
     ax1.set_ylabel('Wysokość [m n.p.m.]', fontsize=11, fontweight='bold')
     ax1.set_title('PROFIL PIONOWY TRASY RUROCIĄGU I POŁOŻENIE WYCIEKU', fontsize=13, fontweight='bold', pad=12)
     ax1.grid(True, linestyle=':', alpha=0.5)
     
-    # Podniesiony limit Y, aby zmieścić ramkę na wysokości 606 m bez ucinania
-    ax1.set_ylim(min(res['z_rura']) - 8, max(z_teren) + 18)
-    ax1.legend(loc='lower left', fontsize=8.5, framealpha=0.95)
+    ax1.set_ylim(min(res['z_rura']) - 14, max(z_teren) + 18)
+    
+    # Legenda odcinków
+    ax1.legend(loc='lower left', bbox_to_anchor=(0.015, 0.04), fontsize=8.0, framealpha=0.95)
+
+    # Objaśnienie oznaczeń
+    objasnienia = (
+        "OBJAŚNIENIE OZNACZEŃ:\n"
+        "• L = Długość fizyczna odcinka w metrach\n"
+        "• Ø = Średnica wewnętrzna rury (SDR 11)\n"
+        "• V = Pojemność wodna odcinka w litrach"
+    )
+    ax1.text(0.015, 0.33, objasnienia, transform=ax1.transAxes,
+             fontsize=8.0, verticalalignment='bottom', horizontalalignment='left',
+             bbox=dict(boxstyle='round,pad=0.4', facecolor='#ffffff', edgecolor='#bdc3c7', alpha=0.95))
 
     # --- PANEL DOLNY: ROZKŁAD CIŚNIENIA ---
     ax2.plot(m, res['cisnienie'], color='#c0392b', linewidth=2.5, label='Ciśnienie statyczne po teście [bar]')
     ax2.fill_between(m, res['cisnienie'], 0, color='#e74c3c', alpha=0.15)
     ax2.axvline(res['m_wyciek'], color='#c0392b', linestyle='--', alpha=0.7)
 
-    # Etykieta manometru w domu
     p_dom = config.POMIAR_TEST_SZCZELNOSCI['cisnienie_ustabilizowane_bar']
     ax2.scatter([601.0], [p_dom], color='#2980b9', s=90, zorder=5)
     ax2.annotate(f"Manometr w domu: {p_dom:.2f} bar\n(Słup w pionie: {res['slup_wody']:.1f} m)",
@@ -180,17 +248,25 @@ def rysuj_raport(m, z_teren, res):
 # 4. TABELA ZBIORCZA W TERMINALU
 # ==============================================================================
 def drukuj_raport(m, z_teren, res):
-    print("\n" + "═" * 78)
+    print("\n" + "═" * 86)
     print("           WYNIKI WERYFIKACJI LOKALIZACJI NIESZCZELNOŚCI")
-    print("═" * 78)
+    print("═" * 86)
     print(f" • Odczyt manometru w domu:          {config.POMIAR_TEST_SZCZELNOSCI['cisnienie_ustabilizowane_bar']:.2f} bar")
     print(f" • Rzeczywisty słup wody nad domem:   {res['slup_wody']:.2f} m w pionie")
     print(f" • Poziom uwięzionej wody w rurze:    {res['h_zwierciadlo']:.2f} m n.p.m.")
-    print("─" * 78)
-    print(f" >>> PUNKT WYCIEKU Z OBLICZEŃ:        km {res['m_wyciek']:.2f} m trasy <<<")
-    print("═" * 78)
+    print("─" * 86)
+    print(f" >>> PUNKT WYCIEKU Z OBLICZEŃ:        {res['m_wyciek']:.2f} m trasy od zbiornika <<<")
+    print("═" * 86)
+    print(f" PARAMETRY ODCINKÓW RUR:")
+    print(f"{'Nazwa sekcji':<20} | {'Długość (L)':<12} | {'Śr. wewn. (Ø)':<14} | {'Pojemność (V)':<14}")
+    print("─" * 86)
+    for s in res['dane_sekcji']:
+        print(f"{s['nazwa']:<20} | {s['dlugosc']:<6.1f} m     | {s['srednica']*1000:<8.1f} mm     | {s['pojemnosc_l']:<8.1f} L")
+    print("─" * 86)
+    print(f" RAZEM W CAŁYM RUROCIĄGU:     L = {max(m):.1f} m | V = {res['pojemnosc_calkowita']:.1f} L (zrzut w teście: ~{res['v_zrzut']:.1f} L)")
+    print("═" * 86)
     print(f"{'Nr':<4} | {'Infrastruktura':<30} | {'Metr':<8} | {'Rzędna':<10} | {'Położenie':<16}")
-    print("─" * 78)
+    print("─" * 86)
     for i, pkt in enumerate(config.PUNKTY_INFRASTRUKTURY, start=1):
         if pkt['metr'] <= max(m):
             h_pkt = float(np.interp(pkt['metr'], m, z_teren))
@@ -202,11 +278,8 @@ def drukuj_raport(m, z_teren, res):
             else:
                 relacja = f"{abs(diff):.1f} m powyżej"
             print(f"[{i}]  | {pkt['nazwa']:<30} | {pkt['metr']:<8.1f} | {h_pkt:<8.2f} m | {relacja:<16}")
-    print("═" * 78 + "\n")
+    print("═" * 86 + "\n")
 
-# ==============================================================================
-# URUCHOMIENIE
-# ==============================================================================
 if __name__ == '__main__':
     metry, z_teren = wczytaj_profil(config.PLIK_PROFILU)
     wyniki = oblicz_hydrostatyke(metry, z_teren)
