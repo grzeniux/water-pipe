@@ -46,9 +46,11 @@ def generuj_mape_cisnien():
     profil = ProfilTerenowy()
 
     pkt_zbiornik = next(p for p in config.PUNKTY_INFRASTRUKTURY if p['typ'] == 'zbiornik')
-    pkt_studnia = next(p for p in config.PUNKTY_INFRASTRUKTURY if p['typ'] == 'studnia')
     z_zbiornik = profil.rzedna_rury(pkt_zbiornik['metr'])
-    z_studnia = profil.rzedna_rury(pkt_studnia['metr'])
+    pkt_dom = next(p for p in config.PUNKTY_INFRASTRUKTURY if p['typ'] == 'dom')
+    poziom_testu = profil.rzedna_rury(pkt_dom['metr']) + config.POMIAR_TEST_SZCZELNOSCI['slup_wody_ustabilizowany_m']
+    miejsca_wycieku = profil.znajdz_metry_dla_rzednej(poziom_testu)
+    metr_wycieku = miejsca_wycieku[0] if miejsca_wycieku else None
 
     # Obliczenie ciśnień dla 3 stanów:
     # 1. Pełna statyka (zawór w domu zamknięty, brak poboru)
@@ -93,8 +95,9 @@ def generuj_mape_cisnien():
         print("Q=30 l/min: brak podciśnienia.")
 
     print("═" * 92)
-    print(" WNIOSEK: Sekcja PE20 (km 217.4 - 309.5) przy 30 l/min traci całe ciśnienie.")
-    print(" Na km 283.4 (miejsce nieszczelności) ciśnienie dynamiczne spada do wartości ujemnych!")
+    print(f" WNIOSEK: przy 30 l/min ciśnienie w modelu osiąga wartości ujemne; minimum opisano wyżej.")
+    if metr_wycieku is not None:
+        print(f" Punkt wycieku z testu 22 IX: km {metr_wycieku:.2f}, poziom {poziom_testu:.2f} m n.p.m.")
     print("═" * 92 + "\n")
 
     # --- TWORZENIE WYKRESU ---
@@ -133,12 +136,13 @@ def generuj_mape_cisnien():
     ax2.fill_between(profil.metry, -2.0, 0.0, color='#e74c3c', alpha=0.18,
                      label='STREFA ZASYSANIA MUŁU (PODCIŚNIENIE < 0 bar)')
 
-    # Wykryta nieszczelność na km 283.4
-    ax2.axvline(283.41, color='#8e44ad', lw=1.8, linestyle='-.')
-    ax2.scatter([283.41], [p_injektor[np.argmin(np.abs(profil.metry - 283.41))]],
-                color='#8e44ad', s=90, zorder=6)
-    ax2.annotate("Wykryta nieszczelność\nkm 283.41 (PE20 w osłonie PE40)",
-                 xy=(283.41, p_injektor[np.argmin(np.abs(profil.metry - 283.41))]),
+    if metr_wycieku is not None:
+        indeks_wycieku = int(np.argmin(np.abs(profil.metry - metr_wycieku)))
+        ax2.axvline(metr_wycieku, color='#8e44ad', lw=1.8, linestyle='-.')
+        ax2.scatter([metr_wycieku], [p_injektor[indeks_wycieku]],
+                    color='#8e44ad', s=90, zorder=6)
+        ax2.annotate(f"Wyliczony punkt nieszczelności\nkm {metr_wycieku:.2f} (PE20 w osłonie PE40)",
+                 xy=(metr_wycieku, p_injektor[indeks_wycieku]),
                  xytext=(180, -1.2),
                  arrowprops=dict(arrowstyle="->", color='#8e44ad', lw=1.5),
                  fontweight='bold', color='#8e44ad',

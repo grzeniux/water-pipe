@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import config
 from core.profil import ProfilTerenowy
-from core.hydraulika import bar_na_metry
+from core.hydraulika import at_na_bar, at_na_metry
 
 
 def znajdz_przeciecia(profil: ProfilTerenowy, rzedna_cel: float) -> list[float]:
@@ -38,11 +38,16 @@ def sekcja_dla_metra(metr: float) -> str:
 def main() -> None:
     profil = ProfilTerenowy()
     dom = next(p for p in config.PUNKTY_INFRASTRUKTURY if p["typ"] == "dom")
-    poziom = profil.rzedna_rury(dom["metr"]) + bar_na_metry(config.POMIAR_TEST_SZCZELNOSCI["cisnienie_ustabilizowane_bar"])
+    zlaczka1 = next(p for p in config.PUNKTY_INFRASTRUKTURY if p["nazwa"].startswith("Zlaczka1"))
+    pomiar = config.POMIAR_TEST_SZCZELNOSCI
+    slup_wody = at_na_metry(pomiar["cisnienie_ustabilizowane_at"])
+    poziom = profil.rzedna_rury(dom["metr"]) + slup_wody
     miejsca = znajdz_przeciecia(profil, poziom)
     print("\nESTYMACJA MIEJSCA NIESZCZELNOŚCI")
+    print(f"Test: {pomiar['data']}, {pomiar['godzina_start']}-{pomiar['godzina_koniec']}; studzienka zamknięta; rozbiór w domu: NIE")
+    print(f"Ciśnienie końcowe: {pomiar['cisnienie_ustabilizowane_at']:.2f} At = {at_na_bar(pomiar['cisnienie_ustabilizowane_at']):.5f} bar = {slup_wody:.2f} m H2O")
     print(f"Poziom rury w domu: {profil.rzedna_rury(dom['metr']):.2f} m n.p.m.")
-    print(f"Rzędna odpowiadająca 1.60 bar: {poziom:.2f} m n.p.m.")
+    print(f"Rzędna lustra wody: {poziom:.2f} m n.p.m.")
     print("\nRZĘDNE PUNKTÓW INFRASTRUKTURY")
     print(f"{'Punkt':<45} | {'Kilometraż':>10} | {'Rzędna rury':>14}")
     print("-" * 78)
@@ -53,21 +58,21 @@ def main() -> None:
     print("-" * 86)
     if miejsca:
         for metr in miejsca:
-            print(f"{metr:>10.2f} m | {metr - 309.46:>12.2f} m | {601.0 - metr:>9.2f} m | {sekcja_dla_metra(metr)}")
-        print(f"WNIOSEK: poziom 1.60 bar przecina profil {len(miejsca)} raz(y); główny punkt: km {miejsca[0]:.2f}.")
+            print(f"{metr:>10.2f} m | {metr - zlaczka1['metr']:>12.2f} m | {dom['metr'] - metr:>9.2f} m | {sekcja_dla_metra(metr)}")
+        print(f"WNIOSEK: poziom {pomiar['cisnienie_ustabilizowane_at']:.1f} At przecina profil {len(miejsca)} raz(y); główny punkt: km {miejsca[0]:.2f}.")
     else:
         print("Brak przecięcia poziomu z profilem w zakresie 0.0-601.0 m.")
 
-    x = np.linspace(0.0, 601.0, 800)
+    x = np.linspace(float(profil.metry[0]), float(dom["metr"]), 800)
     fig, ax = plt.subplots(figsize=(11, 5))
     ax.plot(x, [profil.rzedna_rury(v) for v in x], label="Oś rury")
-    ax.axhline(poziom, color="crimson", linestyle="--", label="Poziom 1.60 bar")
+    ax.axhline(poziom, color="crimson", linestyle="--", label=f"Poziom {pomiar['cisnienie_ustabilizowane_at']:.1f} At ({poziom:.2f} m)")
     if miejsca:
         ax.scatter(miejsca, [poziom] * len(miejsca), color="red", zorder=5, label="Wyestymowany punkt")
     for punkt in config.PUNKTY_INFRASTRUKTURY:
         if punkt["typ"] == "zlaczka":
             ax.axvline(punkt["metr"], color="gray", linestyle=":")
-    ax.set(xlabel="Kilometraż [m]", ylabel="Rzędna [m n.p.m.]", title="Estymacja poziomu odpowiadającego 1.60 bar")
+    ax.set(xlabel="Kilometraż [m]", ylabel="Rzędna [m n.p.m.]", title="Test 22 IX: lokalizacja wycieku z poziomu 1.4 At")
     ax.grid(True, linestyle=":")
     ax.legend()
     Path(ROOT / "wykresy").mkdir(exist_ok=True)

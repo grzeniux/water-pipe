@@ -31,10 +31,11 @@ def main() -> None:
     ax.plot(profil.metry, profil.rzedne_rury, "k", label="Oś rury")
     for q in [0, 10, 20, 25, 30]:
         hgl = np.full_like(profil.metry, profil.rzedna_rury(0.0)) if q == 0 else hgl_dla_q(profil, q)
-        cisnienia = [metry_na_bar(float(np.interp(m, profil.metry, hgl) - profil.rzedna_rury(m))) for m in (401.0, 425.87, 601.0)]
+        punkty_kontrolne = [p for p in config.PUNKTY_INFRASTRUKTURY if p["typ"] in ("zlaczka", "dom")]
+        cisnienia = [metry_na_bar(float(np.interp(punkt["metr"], profil.metry, hgl) - profil.rzedna_rury(punkt["metr"]))) for punkt in punkty_kontrolne]
         podcisnienie = np.asarray(hgl) < profil.rzedne_rury
         strefa = "TAK: podciśnienie" if podcisnienie.any() else "brak"
-        print(f"{q:>10.0f} | {cisnienia[0]:>18.2f} | {cisnienia[1]:>18.2f} | {cisnienia[2]:>12.2f} | {strefa}")
+        print(f"{q:>10.0f} | {cisnienia[1]:>18.2f} | {cisnienia[2]:>18.2f} | {cisnienia[-1]:>12.2f} | {strefa}")
         wyniki.append((q, hgl, cisnienia, strefa))
         ax.plot(profil.metry, hgl, label=f"HGL Q={q} l/min")
         if podcisnienie.any():

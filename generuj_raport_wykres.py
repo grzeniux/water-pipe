@@ -5,6 +5,18 @@ import matplotlib.pyplot as plt
 
 try:
     import config
+    from core.profil import ProfilTerenowy
+
+
+    def znajdz_przeciecia(metry, rzedne, rzedna_cel):
+        roznica = rzedne - rzedna_cel
+        przeciecia = []
+        for m1, m2, z1, z2, d1, d2 in zip(metry[:-1], metry[1:], rzedne[:-1], rzedne[1:], roznica[:-1], roznica[1:]):
+            if d1 == 0:
+                przeciecia.append(float(m1))
+            elif d1 * d2 < 0 and z1 != z2:
+                przeciecia.append(float(m1 + (rzedna_cel - z1) * (m2 - m1) / (z2 - z1)))
+        return sorted(set(round(metr, 6) for metr in przeciecia))
 except ImportError:
     raise ImportError("Upewnij sie, ze plik config.py znajduje sie w tym samym katalogu!")
 
@@ -12,35 +24,8 @@ except ImportError:
 # 1. PARSOWANIE PROFILU GEODEZYJNEGO (X, Y, Z)
 # ==============================================================================
 def wczytaj_profil(sciezka):
-    if not os.path.exists(sciezka):
-        raise FileNotFoundError(f"Brak pliku profilu: {sciezka}")
-
-    px, py, pz = [], [], []
-    with open(sciezka, 'r', encoding='utf-8', errors='ignore') as f:
-        for linia in f:
-            liczby = [float(x) for x in re.findall(r'[-+]?\d*\.?\d+', linia.replace(',', '.'))]
-            if len(liczby) == 3 and liczby[0] > 1000 and liczby[1] > 1000:
-                px.append(liczby[0])
-                py.append(liczby[1])
-                pz.append(liczby[2])
-
-    if not px:
-        raise ValueError(f"Nie znaleziono danych geodezyjnych w: {sciezka}")
-
-    px, py, pz = np.array(px), np.array(py), np.array(pz)
-    odcinki = np.sqrt(np.diff(px)**2 + np.diff(py)**2)
-    metry = np.insert(np.cumsum(odcinki), 0, 0.0)
-
-    # Sortowanie i unikanie duplikatów
-    m_unikalne, z_unikalne = [], []
-    for m, z in zip(metry, pz):
-        if not m_unikalne or m > m_unikalne[-1]:
-            m_unikalne.append(m)
-            z_unikalne.append(z)
-
-    m_siatka = np.linspace(0.0, m_unikalne[-1], int(m_unikalne[-1] * 2))
-    z_siatka = np.interp(m_siatka, m_unikalne, z_unikalne)
-    return m_siatka, z_siatka
+    profil = ProfilTerenowy(sciezka)
+    return profil.metry, profil.z_teren
 
 # ==============================================================================
 # 2. OBLICZENIA HYDROSTATYKI I POJEMNOŚCI WODNEJ
@@ -79,19 +64,22 @@ def oblicz_hydrostatyke(m, z_teren):
     h_start = float(np.interp(0.0, m, z_rura))
     
     P_stat = config.POMIAR_TEST_SZCZELNOSCI['cisnienie_ustabilizowane_bar']
-    slup_wody = P_stat * 10.19716
+    slup_wody = P_stat / config.AT_NA_BAR * config.METRY_NA_AT
     h_zwierciadlo = h_dom + slup_wody
     
     punkt_studnia = next(p for p in config.PUNKTY_INFRASTRUKTURY if p['typ'] == 'studnia')
     maska_odcinka = (m >= punkt_studnia['metr']) & (m <= punkt_dom['metr'])
     m_odc, h_odc = m[maska_odcinka], z_rura[maska_odcinka]
     
-    m_wyciek = float(np.interp(h_zwierciadlo, h_odc[::-1], m_odc[::-1]))
+    przeciecia = znajdz_przeciecia(m_odc, h_odc, h_zwierciadlo)
+    if not przeciecia:
+        raise ValueError('Nie znaleziono przecięcia poziomu lustra wody z profilem.')
+    m_wyciek = przeciecia[0]
     
     cisnienie = np.zeros_like(z_rura)
     for i in range(len(m)):
         if m[i] >= m_wyciek:
-            cisnienie[i] = max(0.0, (h_zwierciadlo - z_rura[i]) / 10.19716)
+            cisnienie[i] = max(0.0, (h_zwierciadlo - z_rura[i]) / config.PRZELICZNIK_M_NA_BAR)
 
     dane_sekcji, poj_calkowita = oblicz_parametry_odcinkow()
 
@@ -242,7 +230,7 @@ def rysuj_raport(m, z_teren, res):
     plik_wykresu = 'wykres_wycieku_raport.png'
     plt.savefig(plik_wykresu, dpi=300, bbox_inches='tight')
     print(f"\n[SUKCES] Wykres zapisano do: {plik_wykresu}")
-    plt.show()
+    plt.close(fig)
 
 # ==============================================================================
 # 4. TABELA ZBIORCZA W TERMINALU

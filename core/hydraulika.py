@@ -15,6 +15,22 @@ def metry_na_bar(metry: float) -> float:
     return metry / config.PRZELICZNIK_M_NA_BAR
 
 
+def at_na_bar(at: float) -> float:
+    return at * config.AT_NA_BAR
+
+
+def bar_na_at(bar: float) -> float:
+    return bar / config.AT_NA_BAR
+
+
+def at_na_metry(at: float) -> float:
+    return at * config.METRY_NA_AT
+
+
+def metry_na_at(metry: float) -> float:
+    return metry / config.METRY_NA_AT
+
+
 def liczba_reynoldsa(predkosc: float, srednica: float) -> float:
     return abs(predkosc) * srednica / config.LEPKOSC_KINEMATYCZNA
 

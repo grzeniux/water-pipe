@@ -7,7 +7,6 @@
 from pathlib import Path
 
 KATALOG_PROJEKTU = Path(__file__).resolve().parent
-#PLIK_PROFILU = 'dane/poprawny_profil.txt'
 PLIK_PROFILU = 'dane/profil_terenu2.txt'
 GLEBOKOSC_RURY = 1.5  # [m]
 
@@ -16,7 +15,9 @@ G = 9.81                          # [m/s^2]
 RO_WODY = 1000.0                  # [kg/m^3]
 LEPKOSC_KINEMATYCZNA = 1.31e-6    # [m^2/s] (~10°C)
 MODUL_SCISLIWOSCI_WODY = 2.15e9   # [Pa] (2.15 GPa)
-PRZELICZNIK_M_NA_BAR = 10.19716   # 1 bar = 10.19716 m H2O
+METRY_NA_AT = 10.0                # 1 At = 10.0 m H2O
+AT_NA_BAR = 0.980665              # 1 At = 0.980665 bar
+PRZELICZNIK_M_NA_BAR = METRY_NA_AT / AT_NA_BAR
 
 # 2. PARAMETRY MATERIAŁOWE RUR PE-HD (PE100 SDR 11)
 CHROPOWATOSC_PE = 0.007e-3        # [m] k = 0.007 mm
@@ -49,8 +50,8 @@ PUNKTY_INFRASTRUKTURY = [
     {
         'nazwa': 'Zlaczka1 - lewa strona pola Marka',
         'typ': 'zlaczka',
-        'metr': 322.73,
-        'opis': 'Przejście PE40 / PE20 na PE32 (punkt awarii i nowego zaworu)'
+        'metr': 320.73,
+        'opis': 'Przybliżona lokalizacja ze zrzutu profilu; granica PE20/PE32 jest na km 322.73'
     },
     {
         'nazwa': 'Zlaczka2 - prawa strona pola Marka',
@@ -115,8 +116,27 @@ SEKCJE_RUR = [
 
 # 5. DANE Z TESTU TATY
 POMIAR_TEST_SZCZELNOSCI = {
-    'cisnienie_poczatkowe_bar': 3.0 / 1.0197,        # 3.0 At -> ~2.94 bar
-    'cisnienie_ustabilizowane_bar': 1.4 / 1.0197,    # 1.4 At -> ~1.37 bar
-    'czas_spadku_min': 53.0,                         # 14:19 do 15:12
-    'punkt_zamkniety': 'Studzienka z reduktorem'
+    'data': '22 IX',
+    'godzina_start': '14:19',
+    'godzina_koniec': '15:12',
+    'cisnienie_poczatkowe_at': 3.0,
+    'cisnienie_ustabilizowane_at': 1.4,
+    'cisnienie_poczatkowe_bar': 3.0 * AT_NA_BAR,
+    'cisnienie_ustabilizowane_bar': 1.4 * AT_NA_BAR,
+    'slup_wody_poczatkowy_m': 30.0,
+    'slup_wody_ustabilizowany_m': 14.0,
+    'czas_spadku_min': 53.0,
+    'punkt_zamkniety': 'Studzienka z reduktorem',
+    'rozbior_w_domu': False,
 }
+
+POMIARY_WZROSTU_24_IX = [
+    {'data': '24 IX', 'godzina': '16:22', 'cisnienie_at': 3.8},
+    {'data': '24 IX', 'godzina': '16:24', 'cisnienie_at': 4.0},
+    {'data': '24 IX', 'godzina': '16:29', 'cisnienie_at': 4.1},
+    {'data': '24 IX', 'godzina': '16:35', 'cisnienie_at': 4.5},
+    {'data': '24 IX', 'godzina': '16:40', 'cisnienie_at': 4.6},
+    {'data': '24 IX', 'godzina': '16:46', 'cisnienie_at': 4.7},
+    {'data': '24 IX', 'godzina': '16:58', 'cisnienie_at': 4.8},
+    {'data': '24 IX', 'godzina': '17:16', 'cisnienie_at': 5.0},
+]
