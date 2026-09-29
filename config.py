@@ -115,8 +115,8 @@ SEKCJE_RUR = [
 
 # 5. DANE Z TESTU TATY
 POMIAR_TEST_SZCZELNOSCI = {
-    'cisnienie_poczatkowe_bar': 3.0,
-    'cisnienie_ustabilizowane_bar': 1.6,
-    'czas_spadku_min': 105.0,
+    'cisnienie_poczatkowe_bar': 3.0 / 1.0197,        # 3.0 At -> ~2.94 bar
+    'cisnienie_ustabilizowane_bar': 1.4 / 1.0197,    # 1.4 At -> ~1.37 bar
+    'czas_spadku_min': 53.0,                         # 14:19 do 15:12
     'punkt_zamkniety': 'Studzienka z reduktorem'
 }
