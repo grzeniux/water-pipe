@@ -7,7 +7,8 @@
 from pathlib import Path
 
 KATALOG_PROJEKTU = Path(__file__).resolve().parent
-PLIK_PROFILU = 'dane/poprawny_profil.txt'
+#PLIK_PROFILU = 'dane/poprawny_profil.txt'
+PLIK_PROFILU = 'dane/profil_terenu2.txt'
 GLEBOKOSC_RURY = 1.5  # [m]
 
 # 1. PARAMETRY FIZYCZNE WODY I PRZELICZNIKI
@@ -42,31 +43,31 @@ PUNKTY_INFRASTRUKTURY = [
     {
         'nazwa': 'Studzienka z reduktorem',
         'typ': 'studnia',
-        'metr': 217.4,
+        'metr': 225.38,
         'opis': 'Zawór odcinający i reduktor'
     },
     {
         'nazwa': 'Zlaczka1 - lewa strona pola Marka',
         'typ': 'zlaczka',
-        'metr': 309.46,
+        'metr': 322.73,
         'opis': 'Przejście PE40 / PE20 na PE32 (punkt awarii i nowego zaworu)'
     },
     {
         'nazwa': 'Zlaczka2 - prawa strona pola Marka',
         'typ': 'zlaczka',
-        'metr': 401.0,
+        'metr': 414.0,
         'opis': 'Początek odcinka PE32 / PE25'
     },
     {
         'nazwa': 'Zlaczka3 - podwórko u Satrow',
         'typ': 'zlaczka',
-        'metr': 425.87,
+        'metr': 438.0,
         'opis': 'Początek odcinka PE32 / PE25'
     },
     {
         'nazwa': 'Dom (zawór + manometr)',
         'typ': 'dom',
-        'metr': 601.0,
+        'metr': 619.0,
         'opis': 'Punkt odbioru i manometr'
     }
 ]
@@ -78,35 +79,37 @@ SEKCJE_RUR = [
         'srednica': D_PE40,
         'grubosc_scianki': 0.0037,
         'od_metra': 0.0,
-        'do_metra': 217.4,
+        'do_metra': 225.38,
     },
     {
         'nazwa': 'Odcinek 2 - PE20 (w osłonie PE40)',
         'srednica': D_PE20,
+        'srednica_oslony': D_PE40,
         'grubosc_scianki': 0.0020,
-        'od_metra': 217.4,
-        'do_metra': 309.46,
+        'od_metra': 225.38,
+        'do_metra': 322.73,
     },
     {
         'nazwa': 'Odcinek 3 - PE32',
         'srednica': D_PE32,
         'grubosc_scianki': 0.0030,
-        'od_metra': 309.46,
-        'do_metra': 401.0,
+        'od_metra': 322.73,
+        'do_metra': 414.0,
     },
     {
-        'nazwa': 'Odcinek 4 - PE25',
+        'nazwa': 'Odcinek 4 - PE25 (w osłonie PE32)',
         'srednica': D_PE25,
+        'srednica_oslony': D_PE32,
         'grubosc_scianki': 0.0023,
-        'od_metra': 401.0,
-        'do_metra': 425.87,
+        'od_metra': 414.0,
+        'do_metra': 438.0,
     },
     {
         'nazwa': 'Odcinek 5 - PE32',
         'srednica': D_PE32,
         'grubosc_scianki': 0.0030,
-        'od_metra': 425.87,
-        'do_metra': 601.0,
+        'od_metra': 438.0,
+        'do_metra': 619.0,
     },
 ]
 

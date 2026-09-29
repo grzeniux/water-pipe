@@ -45,3 +45,10 @@ def srednica_dla_metra(metr: float) -> float:
         if sekcja["od_metra"] <= metr <= sekcja["do_metra"]:
             return sekcja["srednica"]
     raise ValueError(f"Kilometraż poza rurociągiem: {metr}")
+
+def pobierz_srednice_wewn(m_pozycja):
+    """Zwraca średnicę wewnętrzną rury [m] dla danego kilometraża z config.SEKCJE_RUR."""
+    for sekcja in config.SEKCJE_RUR:
+        if sekcja['od_metra'] <= m_pozycja <= sekcja['do_metra']:
+            return sekcja['srednica']
+    return config.D_PE32

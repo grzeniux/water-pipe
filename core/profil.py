@@ -16,8 +16,11 @@ class ProfilTerenowy:
         if not path.is_absolute():
             path = config.KATALOG_PROJEKTU / path
         self.sciezka = path.resolve()
-        self.metry, self.rzedne_terenu = self._wczytaj()
-        self.rzedne_rury = self.rzedne_terenu - config.GLEBOKOSC_RURY
+        self.metry, self.z_teren = self._wczytaj()
+        self.z_rura = self.z_teren - config.GLEBOKOSC_RURY
+        # Aliasy pozostawione dla starszych skryptów korzystających z klasy.
+        self.rzedne_terenu = self.z_teren
+        self.rzedne_rury = self.z_rura
 
     def _wczytaj(self) -> tuple[np.ndarray, np.ndarray]:
         punkty: list[tuple[float, float, float]] = []
@@ -43,11 +46,15 @@ class ProfilTerenowy:
         return unikalne, rzedne[indeksy]
 
     def rzedna_rury(self, metr: float) -> float:
-        return float(np.interp(metr, self.metry, self.rzedne_rury))
+        return float(np.interp(metr, self.metry, self.z_rura))
 
-    def znajdz_metry_dla_rzednej(self, rzedna_cel: float, zakres_od: float, zakres_do: float) -> list[float]:
+    def znajdz_metry_dla_rzednej(
+        self, rzedna_cel: float, zakres_od: float = 0.0, zakres_do: float | None = None
+    ) -> list[float]:
+        if zakres_do is None:
+            zakres_do = float(self.metry[-1])
         maska = (self.metry >= zakres_od) & (self.metry <= zakres_do)
-        metry, rzedne = self.metry[maska], self.rzedne_rury[maska]
+        metry, rzedne = self.metry[maska], self.z_rura[maska]
         wyniki: list[float] = []
         for m1, m2, z1, z2 in zip(metry[:-1], metry[1:], rzedne[:-1], rzedne[1:]):
             if (z1 - rzedna_cel) * (z2 - rzedna_cel) <= 0 and z1 != z2:

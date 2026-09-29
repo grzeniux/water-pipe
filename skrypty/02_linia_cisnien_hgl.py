@@ -26,6 +26,7 @@ def main() -> None:
     print("\nLINIA CIŚNIEŃ HGL I STREFY PODCIŚNIENIA")
     print(f"{'Q [l/min]':>10} | {'P Złączka 2 [bar]':>18} | {'P Złączka 3 [bar]':>18} | {'P dom [bar]':>12} | Strefa")
     print("-" * 86)
+    wyniki: list[tuple[float, np.ndarray, list[float], str]] = []
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.plot(profil.metry, profil.rzedne_rury, "k", label="Oś rury")
     for q in [0, 10, 20, 25, 30]:
@@ -34,6 +35,7 @@ def main() -> None:
         podcisnienie = np.asarray(hgl) < profil.rzedne_rury
         strefa = "TAK: podciśnienie" if podcisnienie.any() else "brak"
         print(f"{q:>10.0f} | {cisnienia[0]:>18.2f} | {cisnienia[1]:>18.2f} | {cisnienia[2]:>12.2f} | {strefa}")
+        wyniki.append((q, hgl, cisnienia, strefa))
         ax.plot(profil.metry, hgl, label=f"HGL Q={q} l/min")
         if podcisnienie.any():
             ax.fill_between(profil.metry, hgl, profil.rzedne_rury, where=podcisnienie, color="red", alpha=0.15)
@@ -41,7 +43,16 @@ def main() -> None:
     ax.grid(True, linestyle=":")
     ax.legend(fontsize=8)
     Path(ROOT / "wykresy").mkdir(exist_ok=True)
-    fig.savefig(ROOT / "wykresy/02_linia_hgl.png", dpi=300, bbox_inches="tight")
+    plik_wykresu = ROOT / "wykresy/02_linia_hgl.png"
+    fig.savefig(plik_wykresu, dpi=300, bbox_inches="tight")
+    print("\nDANE WYKRESU HGL")
+    print(f"Liczba punktów profilu: {len(profil.metry)}; serie Q: {[int(w[0]) for w in wyniki]} l/min")
+    for q, hgl, _, strefa in wyniki:
+        roznica = hgl - profil.rzedne_rury
+        indeks_min = int(np.argmin(roznica))
+        print(f"Q={q:.0f} l/min: HGL start={hgl[0]:.2f}, HGL koniec={hgl[-1]:.2f} m n.p.m.; min. ciśnienie={metry_na_bar(roznica[indeks_min]):.2f} bar na km {profil.metry[indeks_min]:.2f}; {strefa}")
+    print(f"WNIOSEK: strefa podciśnienia występuje dla Q={next((q for q, _, _, s in wyniki if s.startswith('TAK')), 'żadnego')} l/min lub większego w badanym zakresie.")
+    print(f"[OK] Wykres zapisano do: {plik_wykresu}")
     plt.close(fig)
 
 

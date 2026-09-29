@@ -54,6 +54,7 @@ def main() -> None:
     if miejsca:
         for metr in miejsca:
             print(f"{metr:>10.2f} m | {metr - 309.46:>12.2f} m | {601.0 - metr:>9.2f} m | {sekcja_dla_metra(metr)}")
+        print(f"WNIOSEK: poziom 1.60 bar przecina profil {len(miejsca)} raz(y); główny punkt: km {miejsca[0]:.2f}.")
     else:
         print("Brak przecięcia poziomu z profilem w zakresie 0.0-601.0 m.")
 
@@ -70,7 +71,10 @@ def main() -> None:
     ax.grid(True, linestyle=":")
     ax.legend()
     Path(ROOT / "wykresy").mkdir(exist_ok=True)
-    fig.savefig(ROOT / "wykresy/01_estymacja_wycieku.png", dpi=300, bbox_inches="tight")
+    plik_wykresu = ROOT / "wykresy/01_estymacja_wycieku.png"
+    fig.savefig(plik_wykresu, dpi=300, bbox_inches="tight")
+    print(f"DANE WYKRESU: profil rury = {len(x)} punktów; poziom celu = {poziom:.3f} m n.p.m.; zaznaczone przecięcia = {miejsca or 'brak'}")
+    print(f"[OK] Wykres zapisano do: {plik_wykresu}")
     plt.close(fig)
 
 

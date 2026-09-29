@@ -26,7 +26,11 @@ def main() -> None:
     ax.set(xlabel="Czas [min]", ylabel="Ciśnienie [bar]", title="Nieliniowy spadek ciśnienia w teście 105 min")
     ax.grid(True, linestyle=":")
     Path(ROOT / "wykresy").mkdir(exist_ok=True)
-    fig.savefig(ROOT / "wykresy/03_rekonstrukcja_testu.png", dpi=300, bbox_inches="tight")
+    plik_wykresu = ROOT / "wykresy/03_rekonstrukcja_testu.png"
+    fig.savefig(plik_wykresu, dpi=300, bbox_inches="tight")
+    print(f"DANE WYKRESU: seria ciśnienia zawiera {len(chwile)} punktów od {cisnienie[0]:.3f} do {cisnienie[-1]:.3f} bar.")
+    print(f"WNIOSEK: spadek wynosi {start - koniec:.3f} bar w czasie {czas:.0f} min; model kończy się na {koniec:.3f} bar.")
+    print(f"[OK] Wykres zapisano do: {plik_wykresu}")
     plt.close(fig)
 
 

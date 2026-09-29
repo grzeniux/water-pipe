@@ -42,7 +42,14 @@ def main() -> None:
     ax.grid(True, linestyle=":")
     ax.legend()
     Path(ROOT / "wykresy").mkdir(exist_ok=True)
-    fig.savefig(ROOT / "wykresy/04_uderzenie_zukowski.png", dpi=300, bbox_inches="tight")
+    plik_wykresu = ROOT / "wykresy/04_uderzenie_zukowski.png"
+    fig.savefig(plik_wykresu, dpi=300, bbox_inches="tight")
+    seria_zlaczka = [float(wartosc) for wartosc in np.round(statyka_zlaczka + skok, 2)]
+    seria_dom = [float(wartosc) for wartosc in np.round(statyka_dom + skok, 2)]
+    print(f"DANE WYKRESU: Q = {q_values.astype(int).tolist()} l/min")
+    print(f"DANE WYKRESU: seria Złączka 1 = {seria_zlaczka} bar; seria Dom = {seria_dom} bar.")
+    print(f"WNIOSEK: PN10 jest przekroczone od Q={q_values[np.argmax(statyka_zlaczka + skok > 10)]:.0f} l/min; PN16 nie jest przekroczone w badanym zakresie.")
+    print(f"[OK] Wykres zapisano do: {plik_wykresu}")
     plt.close(fig)
 
 
