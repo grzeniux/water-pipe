@@ -129,10 +129,10 @@ def rysuj_raport(m, z_teren, res):
     ax1.plot(m, z_teren, color='#7f8c8d', linestyle='--', linewidth=1.2, label='Powierzchnia terenu', alpha=0.7)
     ax1.fill_between(m, z_teren, min(res['z_rura']) - 15, color='#f8f9fa', alpha=0.6)
 
-    kolory_rur = {'PE40': '#2980b9', 'PE20': '#d35400', 'PE32': '#27ae60', 'PE25': '#8e44ad'}
-    for sekcja in res['dane_sekcji']:
+    kolory_sekcji = ['#2980b9', '#d35400', '#27ae60', '#8e44ad', '#16a085']
+    for numer_sekcji, sekcja in enumerate(res['dane_sekcji']):
         mask = (m >= sekcja['od_metra']) & (m <= sekcja['do_metra'])
-        klucz = [k for k in kolory_rur if k in sekcja['nazwa']][0]
+        kolor = kolory_sekcji[numer_sekcji % len(kolory_sekcji)]
         
         etykieta = (
             f"{sekcja['nazwa']} (L = {sekcja['dlugosc']:.1f} m | "
@@ -140,7 +140,7 @@ def rysuj_raport(m, z_teren, res):
             f"V = {sekcja['pojemnosc_l']:.1f} L)"
         )
         
-        ax1.plot(m[mask], res['z_rura'][mask], color=kolory_rur[klucz], linewidth=3.5, label=etykieta)
+        ax1.plot(m[mask], res['z_rura'][mask], color=kolor, linewidth=3.5, label=etykieta)
 
     # Słup uwięzionej wody
     maska_woda = m >= res['m_wyciek']
