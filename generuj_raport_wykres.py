@@ -50,6 +50,8 @@ def oblicz_parametry_odcinkow():
             'od_metra': s['od_metra'],
             'do_metra': s['do_metra'],
             'srednica': d,
+            'srednica_oslony': s.get('srednica_oslony'),
+            'technologia': s.get('technologia', 'nieokreślona'),
             'dlugosc': dlugosc,
             'pojemnosc_l': pojemnosc_l
         })
@@ -117,14 +119,15 @@ def rysuj_raport(m, z_teren, res):
     ax1.plot(m, z_teren, color='#7f8c8d', linestyle='--', linewidth=1.2, label='Powierzchnia terenu', alpha=0.7)
     ax1.fill_between(m, z_teren, min(res['z_rura']) - 15, color='#f8f9fa', alpha=0.6)
 
-    kolory_sekcji = ['#2980b9', '#d35400', '#27ae60', '#8e44ad', '#16a085']
+    kolory_sekcji = ['#2980b9', '#d35400', '#27ae60', '#8e44ad', '#16a085', '#c0392b']
     for numer_sekcji, sekcja in enumerate(res['dane_sekcji']):
         mask = (m >= sekcja['od_metra']) & (m <= sekcja['do_metra'])
         kolor = kolory_sekcji[numer_sekcji % len(kolory_sekcji)]
         
+        opis_oslony = f"osłona Ø {sekcja['srednica_oslony']*1000:.1f} mm | " if sekcja['srednica_oslony'] else ""
         etykieta = (
             f"{sekcja['nazwa']} (L = {sekcja['dlugosc']:.1f} m | "
-            f"Ø {sekcja['srednica']*1000:.1f} mm | "
+            f"Ø {sekcja['srednica']*1000:.1f} mm | {sekcja['technologia']} | {opis_oslony}"
             f"V = {sekcja['pojemnosc_l']:.1f} L)"
         )
         
@@ -214,9 +217,10 @@ def rysuj_raport(m, z_teren, res):
     ax2.axvline(res['m_wyciek'], color='#c0392b', linestyle='--', alpha=0.7)
 
     p_dom = config.POMIAR_TEST_SZCZELNOSCI['cisnienie_ustabilizowane_bar']
-    ax2.scatter([601.0], [p_dom], color='#2980b9', s=90, zorder=5)
+    punkt_dom = next(p for p in config.PUNKTY_INFRASTRUKTURY if p['typ'] == 'dom')
+    ax2.scatter([punkt_dom['metr']], [p_dom], color='#2980b9', s=90, zorder=5)
     ax2.annotate(f"Manometr w domu: {p_dom:.2f} bar\n(Słup w pionie: {res['slup_wody']:.1f} m)",
-                 xy=(601.0, p_dom), xytext=(450, p_dom + 0.35),
+                 xy=(punkt_dom['metr'], p_dom), xytext=(max(0, punkt_dom['metr'] - 169), p_dom + 0.35),
                  arrowprops=dict(arrowstyle='->', color='#2980b9', lw=1.5),
                  fontsize=9, fontweight='bold', color='#1f618d',
                  bbox=dict(boxstyle="round,pad=0.3", fc="#ebf5fb", ec="#2980b9", lw=1))
@@ -246,10 +250,11 @@ def drukuj_raport(m, z_teren, res):
     print(f" >>> PUNKT WYCIEKU Z OBLICZEŃ:        {res['m_wyciek']:.2f} m trasy od zbiornika <<<")
     print("═" * 86)
     print(f" PARAMETRY ODCINKÓW RUR:")
-    print(f"{'Nazwa sekcji':<20} | {'Długość (L)':<12} | {'Śr. wewn. (Ø)':<14} | {'Pojemność (V)':<14}")
+    print(f"{'Nazwa sekcji':<32} | {'Technologia':<12} | {'Długość (L)':<12} | {'Śr. wewn. (Ø)':<14} | {'Osłona Ø':<12} | {'Pojemność (V)':<14}")
     print("─" * 86)
     for s in res['dane_sekcji']:
-        print(f"{s['nazwa']:<20} | {s['dlugosc']:<6.1f} m     | {s['srednica']*1000:<8.1f} mm     | {s['pojemnosc_l']:<8.1f} L")
+        oslona = f"{s['srednica_oslony'] * 1000:.1f} mm" if s['srednica_oslony'] else "brak"
+        print(f"{s['nazwa']:<32} | {s['technologia']:<12} | {s['dlugosc']:<6.1f} m     | {s['srednica']*1000:<8.1f} mm     | {oslona:<12} | {s['pojemnosc_l']:<8.1f} L")
     print("─" * 86)
     print(f" RAZEM W CAŁYM RUROCIĄGU:     L = {max(m):.1f} m | V = {res['pojemnosc_calkowita']:.1f} L (zrzut w teście: ~{res['v_zrzut']:.1f} L)")
     print("═" * 86)

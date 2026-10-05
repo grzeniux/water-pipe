@@ -57,14 +57,30 @@ def predkosc_fali_zukowskiego(srednica: float, grubosc_scianki: float) -> float:
 
 
 def srednica_dla_metra(metr: float) -> float:
-    for sekcja in config.SEKCJE_RUR:
-        if sekcja["od_metra"] <= metr <= sekcja["do_metra"]:
+    for numer, sekcja in enumerate(config.SEKCJE_RUR):
+        jest_ostatnia = numer == len(config.SEKCJE_RUR) - 1
+        if sekcja["od_metra"] <= metr < sekcja["do_metra"] or (jest_ostatnia and metr == sekcja["do_metra"]):
             return sekcja["srednica"]
     raise ValueError(f"Kilometraż poza rurociągiem: {metr}")
 
 def pobierz_srednice_wewn(m_pozycja):
     """Zwraca średnicę wewnętrzną rury [m] dla danego kilometraża z config.SEKCJE_RUR."""
-    for sekcja in config.SEKCJE_RUR:
-        if sekcja['od_metra'] <= m_pozycja <= sekcja['do_metra']:
+    for numer, sekcja in enumerate(config.SEKCJE_RUR):
+        jest_ostatnia = numer == len(config.SEKCJE_RUR) - 1
+        if sekcja['od_metra'] <= m_pozycja < sekcja['do_metra'] or (jest_ostatnia and m_pozycja == sekcja['do_metra']):
             return sekcja['srednica']
     return config.D_PE32
+
+
+def pobierz_sekcje(m_pozycja: float) -> dict:
+    """Zwraca pełną sekcję, w tym przewód wewnętrzny i opcjonalną osłonę."""
+    for numer, sekcja in enumerate(config.SEKCJE_RUR):
+        jest_ostatnia = numer == len(config.SEKCJE_RUR) - 1
+        if sekcja['od_metra'] <= m_pozycja < sekcja['do_metra'] or (jest_ostatnia and m_pozycja == sekcja['do_metra']):
+            return sekcja
+    raise ValueError(f"Kilometraż poza zdefiniowanymi sekcjami: {m_pozycja}")
+
+
+def pobierz_rure_i_oslone(m_pozycja: float) -> tuple[dict, dict | None]:
+    sekcja = pobierz_sekcje(m_pozycja)
+    return sekcja['rura_wewnetrzna'], sekcja['osłona']

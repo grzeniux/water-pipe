@@ -7,7 +7,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import config
-from core.hydraulika import metry_na_bar, strata_lokalna_darcy
+from core.hydraulika import metry_na_bar, srednica_dla_metra, strata_lokalna_darcy
 from core.profil import ProfilTerenowy
 
 
@@ -16,7 +16,7 @@ def hgl_dla_q(profil: ProfilTerenowy, q_lmin: float) -> np.ndarray:
     hgl = [zbiornik]
     q = q_lmin / 1000 / 60
     for m1, m2 in zip(profil.metry[:-1], profil.metry[1:]):
-        strata = strata_lokalna_darcy(q, m2 - m1, next(s["srednica"] for s in config.SEKCJE_RUR if s["od_metra"] <= m1 <= s["do_metra"]))
+        strata = strata_lokalna_darcy(q, m2 - m1, srednica_dla_metra(float(m1)))
         hgl.append(hgl[-1] - strata)
     return np.asarray(hgl)
 
